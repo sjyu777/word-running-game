@@ -1,17 +1,59 @@
 # Word Runner
 
-A voxel-style 3D Chinese-to-English vocabulary runner for Linux and macOS. Runs in a modern browser with WebGL, using Three.js and Vite.
+A voxel-style 3D Chinese-to-English vocabulary runner for macOS, Linux, and Windows. Runs in a modern browser with WebGL, using Three.js and Vite.
 
 ## Run locally
 
-Install Node.js 22.12+ (or 24), then:
+### Requirements
+
+Install Node.js 22.12+ (or Node.js 24), which includes npm, and Git to clone this repository. You can also download and extract the repository ZIP instead of using Git. Use a modern browser with WebGL and hardware acceleration enabled.
+
+### macOS
+
+Open Terminal and run:
 
 ```sh
+git clone https://github.com/sjyu777/word-running-game.git
+cd word-running-game
 npm install
 npm run dev
 ```
 
-Open the URL printed by Vite, normally http://localhost:5173. For a production build:
+### Linux
+
+Open your terminal and run:
+
+```sh
+git clone https://github.com/sjyu777/word-running-game.git
+cd word-running-game
+npm install
+npm run dev
+```
+
+### Windows
+
+Open PowerShell or Command Prompt and run:
+
+```powershell
+git clone https://github.com/sjyu777/word-running-game.git
+cd word-running-game
+npm install
+npm run dev
+```
+
+If PowerShell reports that `npm.ps1` cannot run because scripts are disabled, use `npm.cmd install` and `npm.cmd run dev`, or run the commands in Command Prompt.
+
+### Open, stop, and restart the game
+
+On every platform, open the URL printed by Vite, normally http://localhost:5173. Keep the terminal open while playing. Press **Ctrl+C** in the terminal to stop the server.
+
+For later launches, open a terminal in the `word-running-game` folder and run `npm run dev`. You only need `npm install` on the first launch or after dependencies change. If you downloaded the ZIP, open a terminal in its extracted project folder and start with `npm install`.
+
+If `node` or `npm` is not found after installation, close and reopen your terminal. Do not open `index.html` directly; launch the server and use its URL.
+
+### Production build
+
+From the project folder, run these commands on any platform:
 
 ```sh
 npm run build
