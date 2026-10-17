@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createCharacter} from './characters.js';
 export function createScene(container){
  const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(52,1,.1,180);camera.position.set(0,7,15);camera.lookAt(0,1,-12);
  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));container.append(renderer.domElement);
@@ -9,27 +10,11 @@ export function createScene(container){
  for(let i=0;i<22;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(11.8,.025,.07),new THREE.MeshBasicMaterial({color:0x345468}));m.position.set(0,.04,-i*6);world.add(m);lines.push(m);}
  // A voxel runner built entirely from cubes, with limbs rotating at their joints.
  const actor=new THREE.Group();scene.add(actor);
- const suit=new THREE.MeshStandardMaterial({color:0xffae6c,roughness:.85});
- const skin=new THREE.MeshStandardMaterial({color:0xffdfb5,roughness:.9});
- const dark=new THREE.MeshStandardMaterial({color:0x213448,roughness:.8});
- const light=new THREE.MeshStandardMaterial({color:0xe9f6ff,roughness:.6});
- function block(parent,size,position,material){const mesh=new THREE.Mesh(new THREE.BoxGeometry(...size),material);mesh.position.set(...position);parent.add(mesh);return mesh;}
- block(actor,[.64,.75,.4],[0,1.15,0],suit);
- block(actor,[.7,.66,.62],[0,1.94,0],skin);
- block(actor,[.76,.17,.68],[0,2.2,0],suit);
- block(actor,[.76,.13,.68],[0,1.63,0],suit);
- block(actor,[.58,.22,.035],[0,1.98,.33],dark);
- block(actor,[.12,.08,.02],[-.16,2.01,.355],light);
- block(actor,[.12,.08,.02],[.16,2.01,.355],light);
- block(actor,[.22,.08,.025],[0,1.77,.325],dark);
- block(actor,[.2,.2,.025],[0,1.23,.215],light);
- const limbs=[];
- for(const x of [-1,1]){
-  const leg=new THREE.Group();leg.position.set(x*.18,.8,0);actor.add(leg);
-  block(leg,[.25,.61,.29],[0,-.3,0],suit);block(leg,[.28,.18,.4],[0,-.66,.06],dark);limbs.push(leg);
-  const arm=new THREE.Group();arm.position.set(x*.47,1.45,0);actor.add(arm);
-  block(arm,[.23,.49,.27],[0,-.22,0],suit);block(arm,[.23,.2,.27],[0,-.54,0],skin);limbs.push(arm);
- }
+ // The model faces local +Z; turn it toward the road ahead (-Z), away from the camera.
+ actor.rotation.y=Math.PI;
+ let character;
+ function setActor(id){if(character){actor.remove(character.root);character.dispose();}character=createCharacter(id);actor.add(character.root);renderer.domElement.dataset.character=id;}
+ setActor('steve');
  const decorations=new THREE.Group();world.add(decorations);let theme='galaxy',lane=2,jumpAt=-10,running=false,layoutListener=null;
  function setTheme(value){theme=value;const colors={galaxy:[0x101a30,0x9180d6],jungle:[0x12362f,0x72c995],ocean:[0x08354a,0x67c9d4]};const [bg,accent]=colors[value];scene.background=new THREE.Color(bg);scene.fog=new THREE.Fog(bg,24,110);road.material.color.set(value==='jungle'?0x28483b:value==='ocean'?0x155064:0x253049);
  for(const child of [...decorations.children]){decorations.remove(child);child.geometry.dispose();child.material.dispose();}
@@ -37,8 +22,9 @@ export function createScene(container){
  setTheme(theme);
  const resize=()=>{const {width,height}=container.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;laneSpacing=laneWidth*Math.min(1,camera.aspect/.95);world.scale.x=laneSpacing/laneWidth;camera.updateProjectionMatrix();};const observer=new ResizeObserver(resize);observer.observe(container);
  function project(x,y){const point=new THREE.Vector3(x,y,0).project(camera);return {x:(point.x+1)*renderer.domElement.clientWidth/2,y:(1-point.y)*renderer.domElement.clientHeight/2};}
- function layout(){const targets=Array.from({length:5},(_,i)=>project((i-2)*laneSpacing,3.98));const head=project(actor.position.x,actor.position.y+2.28);renderer.domElement.dataset.runnerHeadY=head.y.toFixed(2);renderer.domElement.dataset.runnerHeadX=head.x.toFixed(2);layoutListener?.(targets);}
- let previous=0;function frame(ms){const t=ms/1000,dt=Math.min(t-previous,.05);previous=t;actor.position.x=THREE.MathUtils.damp(actor.position.x,(lane-2)*laneSpacing,12,dt);actor.position.y=Math.max(0,Math.sin(Math.min(1,(t-jumpAt)/.48)*Math.PI)*1.7);if(running){for(let i=0;i<limbs.length;i++)limbs[i].rotation.x=Math.sin(t*12+(i<2?0:Math.PI))*(i%2?1:-1)*.6;for(const line of lines){line.position.z+=dt*13;if(line.position.z>8)line.position.z-=132;}for(const d of decorations.children){d.position.z+=dt*9;if(d.position.z>15)d.position.z=-115;}}renderer.render(scene,camera);layout();}
+ function layout(){const targets=Array.from({length:5},(_,i)=>project((i-2)*laneSpacing,character.height+1.7));const head=project(actor.position.x,actor.position.y+character.height);renderer.domElement.dataset.runnerHeadY=head.y.toFixed(2);renderer.domElement.dataset.runnerHeadX=head.x.toFixed(2);layoutListener?.(targets);}
+ let speedMultiplier=1,animationTime=0;
+ let previous=0;function frame(ms){const t=ms/1000,dt=Math.min(t-previous,.05);previous=t;actor.position.x=THREE.MathUtils.damp(actor.position.x,(lane-2)*laneSpacing,12,dt);actor.position.y=Math.max(0,Math.sin(Math.min(1,(t-jumpAt)/.48)*Math.PI)*1.7);if(running){const motionDt=dt*speedMultiplier;animationTime+=motionDt;character.animate(animationTime);for(const line of lines){line.position.z+=motionDt*13;if(line.position.z>8)line.position.z-=132;}for(const d of decorations.children){d.position.z+=motionDt*9;if(d.position.z>15)d.position.z=-115;}}renderer.render(scene,camera);layout();}
  renderer.setAnimationLoop(frame);
- return {setTheme,setLane:v=>lane=v,jump:()=>{actor.position.x=(lane-2)*laneSpacing;jumpAt=performance.now()/1000;},onTargetLayout:listener=>layoutListener=listener,setRunning:v=>running=v,setActor:color=>suit.color.set(color),setQuality:v=>{renderer.setPixelRatio(v==='low'?1:Math.min(devicePixelRatio,1.75));resize();},dispose:()=>{observer.disconnect();renderer.setAnimationLoop(null);renderer.dispose();}};
+ return {setSpeed:value=>{if(Number.isFinite(value))speedMultiplier=Math.max(0,Math.min(5,value))/2.5;},setTheme,refreshLayout:layout,setLane:v=>lane=v,jump:()=>{actor.position.x=(lane-2)*laneSpacing;jumpAt=performance.now()/1000;},onTargetLayout:listener=>layoutListener=listener,setRunning:v=>running=v,setActor,setPreview:value=>{actor.rotation.y=value?.35:Math.PI;},setQuality:v=>{renderer.setPixelRatio(v==='low'?1:Math.min(devicePixelRatio,1.75));resize();},dispose:()=>{observer.disconnect();renderer.setAnimationLoop(null);character.dispose();renderer.dispose();}};
 }

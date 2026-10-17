@@ -22,19 +22,31 @@ Deploy the `dist` directory to a static web host. Game code and scenery are bund
 
 ## Play
 
-Choose an existing player, or optionally add one. Select Nova, Moss, or Bubbles and a Galaxy, Jungle, or Undersea stage. Left/Right changes between five lanes; Up jumps to submit the selected English word. On touch devices, tap a word to select its lane and tap Jump. Word boxes float above the runner; a jump hits the selected box at its apex. A correct hit bumps the box and releases a golden star from its top before advancing. Every correct answer gives 100 speed points and advances to the next question. A wrong answer shows a cross and locks controls for one second; elapsed time continues. Finishing all questions ends the stage.
+Choose an existing player, or optionally add one. Select Steve, Creeper, Wolf, or Skeleton and a Galaxy, Jungle, or Undersea stage. Each runner has a distinct procedural voxel model, matching portrait, and animated limbs. The home preview shows the character's face; during play, runners face down the road. Left/Right changes between five lanes; Up jumps to submit the selected English word. On touch devices, tap a word to select its lane and tap Jump. Word boxes float above the runner, with their height adjusted to the character so a jump hits the selected box at its apex. A correct hit bumps the box and releases a golden star from its top before advancing. Every correct answer gives 100 speed points and advances to the next question. A wrong answer shows a cross and locks controls for one second; elapsed time continues. Finishing all questions ends the stage.
 
 Results show elapsed seconds, speed points, mistakes, personal best, and the stage's top five players, sorted by each player's fastest time. Replay restarts the timer and score. Leaving an unfinished run does not record a result.
 
+Adventure (Challenge) starts with a 3–2–1 countdown. Answers are locked during preparation, and the completion timer begins when the countdown ends. Leaving the run cancels the countdown.
+
 Select Performance graphics if a device struggles. The renderer uses capped pixel density, lightweight geometry and delta-time motion; actual frame rate depends on the device and browser. Hardware acceleration/WebGL is required.
+
+## 60-second challenge
+
+Select **60-second challenge** for a one-minute round using all vocabulary entries from all stages, shuffled without replacement. The chosen world supplies the scenery. After the 3–2–1 preparation countdown, the timer starts at 60 seconds. Every correct answer earns one point; wrong answers keep the one-second input penalty while the timer continues. If you complete the pool, it reshuffles and continues until time expires. Answers landing at or after the deadline do not count.
+
+The results show correct words, personal best, and the top five players by each player's highest correct-word count. This leaderboard is saved in this browser separately from adventure results. Leaving early does not save a score. Replay starts a fresh minute and reshuffles all words. Scene speed does not affect the time limit.
 
 ## Practice spelling
 
-Every stage supports Practice spelling. Choose a stage and switch the mode before starting. The Chinese prompt remains visible, while the letters of its English answer are shuffled across the lanes. Jump to collect each letter in order; Your spelling shows the sequence as you build it. Each tile can be collected once, including separate tiles for repeated letters.
+Every stage supports Practice spelling. Choose a stage and switch the mode before starting. All shuffled letters appear below the spelling boxes, wrapping onto additional rows for longer words. Each repeated letter has its own tile. Select a letter and press Up (or Jump) to place it in the selected box. Green boxes with a check mark indicate the correct position; red boxes with a cross indicate an incorrect position.
 
-Down, Delete, Backspace, or the Undo button removes the last collected letter and restores its tile. An incorrect complete spelling stays editable. A correct complete spelling releases a golden star and advances to the next word. Longer words have multiple pages of five letter tiles; use the Letters buttons or Q/E to change pages.
+Select any spelling box and press Down, Delete, Backspace, or Remove to return that specific letter to the bank without shifting other letters. Left/Right moves through letters or boxes depending on which you last selected; Q/E selects the previous/next box. A correctly placed letter advances selection to the next empty box. Completing the correct spelling advances to the next word.
 
 Practice has no timer, speed score, or rankings. Its completion screen shows words practiced and spelling retries. Practice results never enter challenge rankings. Replay resets the letters and sequence.
+
+## Running speed
+
+The footer's Running speed slider controls scenery and running animation from 0 to 5: 0 stops motion, 2.5 is the original speed, and 5 is double speed. Changes apply immediately, including the home preview, and persist in this browser. Jump timing, answer controls, scoring, and the challenge timer are unchanged.
 
 ## Sound
 
@@ -77,4 +89,4 @@ Unit tests cover vocabulary validation, the exact penalty boundary, scoring, com
 
 ## Font license
 
-The English word boxes use the bundled Silkscreen font, licensed under the SIL Open Font License; see `public/fonts/OFL.txt`. Voxel characters are original procedural models built from cubes.
+Vocabulary boxes and practice letters use a clear sans-serif font; Chinese prompts use the system's Chinese font. Decorative timers and scores use the bundled Silkscreen font, licensed under the SIL Open Font License; see `public/fonts/OFL.txt`. Voxel characters are original procedural models built from cubes.

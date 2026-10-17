@@ -10,6 +10,7 @@ test('world and actor selections and mobile controls',async({page})=>{await page
 
 test('raised targets are hit at jump apex and release a golden star',async({page})=>{
  await page.goto('/');await page.locator('#start').click();
+ await expect(page.locator('#countdown')).toHaveCount(0);
  const canvas=page.locator('canvas');await expect(canvas).toHaveAttribute('data-runner-head-y',/.+/);
  const headY=Number(await canvas.getAttribute('data-runner-head-y'));
  const box=await page.locator('.word.active').boundingBox();const canvasBox=await canvas.boundingBox();
@@ -44,20 +45,43 @@ test('every event synthesizes a non-silent sound',async({page})=>{
  }
 });
 
-test('practice supports undo, repeated letters and long words without score or rankings',async({page})=>{
- await page.addInitScript(()=>localStorage.setItem('word-runner-v1',JSON.stringify({players:[{id:'learner',name:'Learner'}],runs:[],stages:[{id:'practice-test',name:'Spelling trail',theme:'jungle',questions:[{chinese:'樹',answer:'tree',choices:['tree','three','free','true','train']},{chinese:'森林',answer:'forest',choices:['forest','forget','frost','first','flower']}]}]})));
- await page.goto('/');await page.locator('#practice-mode').click();await expect(page.locator('#view-ranks')).toHaveCount(0);await page.locator('#start').click();await expect(page.locator('#chinese')).toHaveText('樹');await expect(page.locator('#timer')).toHaveCount(0);await expect(page.locator('#points')).toHaveCount(0);
- const collect=async(letter,expected,complete=false)=>{
-  let tile=page.locator('.word:not(:disabled)').filter({has:page.getByText(letter,{exact:true})}).first();
-  if(!await tile.count()){if(await page.locator('#letters-prev').isEnabled())await page.locator('#letters-prev').click();tile=page.locator('.word:not(:disabled)').filter({has:page.getByText(letter,{exact:true})}).first();if(!await tile.count())await page.locator('#letters-next').click();}
-  await tile.click();await page.locator('#jump').click();await expect(page.locator('#sequence')).toHaveAttribute('data-spelling',expected);if(!complete)await expect(page.locator('#jump')).toBeEnabled();
- };
- await collect('e','e');await page.keyboard.press('ArrowDown');await expect(page.locator('#sequence')).toHaveAttribute('data-spelling','');await collect('r','r');await page.keyboard.press('Delete');await expect(page.locator('#sequence')).toHaveAttribute('data-spelling','');
- // Build a wrong order, then remove letters and try again.
- for(const [i,c] of [...'reet'].entries())await collect(c,'reet'.slice(0,i+1));await expect(page.locator('#feedback')).toContainText('Try another order');
- for(let i=0;i<4;i++)await page.getByRole('button',{name:'Remove last letter'}).click();await expect(page.locator('#sequence')).toHaveAttribute('data-spelling','');
- for(const [i,c] of [...'tree'].entries())await collect(c,'tree'.slice(0,i+1),i===3);await expect(page.locator('#chinese')).toHaveText('森林');await expect(page.locator('#sequence')).toHaveAttribute('data-spelling','');await expect(page.locator('.letter-pages')).toBeVisible();
- for(const [i,c] of [...'forest'].entries())await collect(c,'forest'.slice(0,i+1),i===5);
- await expect(page.getByText('Spelling unlocked!')).toBeVisible();await expect(page.locator('.results')).toContainText('WORDS PRACTICED');await expect(page.locator('.rankings')).toHaveCount(0);await expect(page.locator('.results')).not.toContainText('SPEED POINTS');expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('word-runner-v1')).runs)).toEqual([]);
- await page.locator('#retry').click();await expect(page.locator('#chinese')).toHaveText('樹');await expect(page.locator('#sequence')).toHaveAttribute('data-spelling','');
+test('practice shows every letter and supports position feedback and targeted removal',async({page})=>{
+ await page.addInitScript(()=>localStorage.setItem('word-runner-v1',JSON.stringify({players:[{id:'learner',name:'Learner'}],runs:[],stages:[{id:'practice-test',name:'Spelling trail',theme:'jungle',questions:[{chinese:'氣球',answer:'balloon',choices:['balloon','tree','forest','star','moon']}]}]})));
+ await page.setViewportSize({width:390,height:844});await page.goto('/');await page.locator('#practice-mode').click();await page.locator('#start').click();
+ await expect(page.locator('.letter-tile')).toHaveCount(7);await expect(page.locator('.spelling-slot')).toHaveCount(7);
+ await expect(page.locator('#timer')).toHaveCount(0);
+ for(const tile of await page.locator('.letter-tile').all()){await expect(tile).toBeVisible();const box=await tile.boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(390);}
+ const slots=await page.locator('#sequence').boundingBox(),bank=await page.locator('#words').boundingBox();expect(bank.y).toBeGreaterThan(slots.y+slots.height);
+ const place=async(char,position)=>{await page.locator('[data-slot="'+position+'"]').click();await page.locator('.letter-tile:not(:disabled)').filter({has:page.getByText(char,{exact:true})}).first().click();await page.keyboard.press('ArrowUp');await expect(page.locator('#jump')).toBeEnabled();};
+ await place('a',0);await expect(page.locator('[data-slot="0"]')).toHaveClass(/incorrect/);
+ await place('b',1);await expect(page.locator('[data-slot="1"]')).toHaveClass(/incorrect/);
+ await page.locator('[data-slot="0"]').click();await page.keyboard.press('ArrowDown');await expect(page.locator('[data-slot="0"]')).toHaveClass(/empty/);await expect(page.locator('[data-slot="1"] strong')).toHaveText('b');
+ await page.locator('[data-slot="1"]').click();await page.keyboard.press('ArrowDown');
+ for(const [i,char] of [...'balloon'].entries()){if(i===6){await page.locator('[data-slot="6"]').click();await page.locator('.letter-tile:not(:disabled)').filter({has:page.getByText(char,{exact:true})}).first().click();await page.keyboard.press('ArrowUp');}else{await place(char,i);await expect(page.locator('[data-slot="'+i+'"]')).toHaveClass(/correct/);}}
+ await expect(page.getByText('Spelling unlocked!')).toBeVisible();expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('word-runner-v1')).runs)).toEqual([]);
+ await page.locator('#retry').click();await expect(page.locator('.spelling-slot.empty')).toHaveCount(7);
+});
+test('adventure countdown blocks answers, excludes preparation time and cancels on exit',async({page})=>{
+ await page.goto('/');await page.locator('#start').click();await expect(page.locator('#countdown strong')).toHaveText('3');
+ await page.keyboard.press('ArrowUp');await expect(page.locator('#points')).toHaveText('0');await expect(page.locator('#timer')).toHaveText('0.00');
+ await expect(page.locator('#countdown strong')).toHaveText('2');await expect(page.locator('#timer')).toHaveText('0.00');
+ await expect(page.locator('#countdown')).toHaveCount(0);expect(Number(await page.locator('#timer').textContent())).toBeLessThan(1);
+ await page.locator('#exit').click();await page.locator('#start').click();await expect(page.locator('#countdown')).toBeVisible();await page.locator('#exit').click();await page.waitForTimeout(3200);await expect(page.locator('#start')).toBeVisible();await expect(page.locator('#countdown')).toHaveCount(0);
+});
+test('60-second challenge uses every stage, saves word scores separately, and resets on replay',async({page})=>{
+ await page.clock.install();
+ await page.addInitScript(()=>localStorage.setItem('word-runner-v1',JSON.stringify({players:[{id:'learner',name:'Learner'}],runs:[],stages:[{id:'one',name:'One',theme:'galaxy',questions:[{chinese:'星星',answer:'star',choices:['star','start','stair','store','storm']}]},{id:'two',name:'Two',theme:'jungle',questions:[{chinese:'樹',answer:'tree',choices:['tree','three','free','true','train']}]}]})));
+ await page.goto('/');await page.locator('#timed-mode').click();await page.locator('#start').click();await expect(page.locator('#timer')).toHaveText('60.00');
+ await page.clock.runFor(3100);await expect(page.locator('#countdown')).toHaveCount(0);await expect(page.locator('#progress')).toContainText('ALL 2 STAGES');
+ const seen=[];
+ for(let i=0;i<2;i++){
+  const prompt=await page.locator('#chinese').textContent();seen.push(prompt);const answer=prompt==='星星'?'star':'tree';
+  await page.locator('.word').filter({has:page.getByText(answer,{exact:true})}).click();await page.keyboard.press('ArrowUp');await page.clock.runFor(1150);
+ }
+ expect(new Set(seen).size).toBe(2);await expect(page.locator('#points')).toHaveText('2');
+ await page.clock.fastForward(60000);await expect(page.locator('.results')).toContainText('Time’s up');await expect(page.locator('.result-stats strong')).toHaveText('2');await expect(page.locator('.rankings')).toContainText('2 words');
+ let saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('word-runner-v1')));expect(saved.runs).toEqual([]);expect(saved.timedRuns).toHaveLength(1);expect(saved.timedRuns[0].points).toBe(2);
+ await page.clock.fastForward(1000);saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('word-runner-v1')));expect(saved.timedRuns).toHaveLength(1);
+ await page.locator('#retry').click();await expect(page.locator('#timer')).toHaveText('60.00');await expect(page.locator('#points')).toHaveText('0');await page.locator('#exit').click();await page.clock.fastForward(65000);await expect(page.locator('#start')).toBeVisible();
+ await page.locator('#view-ranks').click();await expect(page.locator('.rankings')).toContainText('Learner');
 });

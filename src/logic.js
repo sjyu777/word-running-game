@@ -23,16 +23,42 @@ export class Run {
 export class PracticeRun {
  constructor(stage,now=0){this.stage=stage;this.started=now;this.index=0;this.mistakes=0;this.lockedUntil=0;this.finished=false;this.completedWord='';this.prepareLetters();}
  prepareLetters(){this.answer=this.stage.questions[this.index].answer.toLowerCase();const letters=Array.from(this.answer);this.choices=shuffle(letters);if(this.choices.join('')===this.answer&&new Set(letters).size>1)this.choices.push(this.choices.shift());this.picks=[];}
- get sequence(){return this.picks.map(i=>this.choices[i]).join('');}
- hit(tile,now){
+ get sequence(){return this.picks.map(i=>i==null?'':this.choices[i]).join('');}
+ hit(tile,now,position=this.picks.findIndex(i=>i==null)){
   if(this.finished||!Number.isInteger(tile)||tile<0||tile>=this.choices.length||this.picks.includes(tile))return 'locked';
-  if(this.picks.length===this.choices.length)return 'full';
-  this.picks.push(tile);
-  if(this.picks.length<this.choices.length)return 'letter';
+  if(position===-1)position=this.picks.length;
+  if(!Number.isInteger(position)||position<0||position>=this.choices.length||this.picks[position]!=null)return 'full';
+  while(this.picks.length<=position)this.picks.push(null);
+  this.picks[position]=tile;
+  if(this.picks.filter(i=>i!=null).length<this.choices.length)return 'letter';
   if(this.sequence!==this.answer){this.mistakes++;return 'spelling-wrong';}
   this.completedWord=this.sequence;this.index++;
   if(this.index===this.stage.questions.length){this.finished=true;this.seconds=(now-this.started)/1000;return 'finished';}
   this.prepareLetters();return 'correct';
  }
- undo(){if(this.finished||!this.picks.length)return false;this.picks.pop();return true;}
+ undo(position=this.picks.findLastIndex(i=>i!=null)){if(this.finished||position<0||this.picks[position]==null)return false;this.picks[position]=null;while(this.picks.length&&this.picks.at(-1)==null)this.picks.pop();return true;}
+}
+export function timedRankings(runs){
+ const best=new Map();
+ for(const run of runs)if(!best.has(run.playerId)||run.points>best.get(run.playerId).points)best.set(run.playerId,run);
+ return [...best.values()].sort((a,b)=>b.points-a.points).slice(0,5);
+}
+
+export class TimedRun {
+ constructor(stages,now=0){
+  this.pool=stages.flatMap(stage=>stage.questions.map(question=>({...question,choices:[...question.choices]})));
+  this.stage={name:'60-second challenge',questions:shuffle(this.pool)};
+  this.started=now;this.index=0;this.points=0;this.mistakes=0;this.lockedUntil=0;this.finished=false;
+  this.choices=shuffle(this.stage.questions[0].choices);
+ }
+ remaining(now){return Math.max(0,60-(now-this.started)/1000);}
+ expire(now){if(this.remaining(now)>0&&!this.finished)return false;this.finished=true;this.seconds=60;return true;}
+ hit(lane,now){
+  if(this.expire(now))return 'expired';
+  if(now<this.lockedUntil)return 'locked';
+  if(this.choices[lane]!==this.stage.questions[this.index].answer){this.mistakes++;this.lockedUntil=now+1000;return 'wrong';}
+  this.points++;this.index++;
+  if(this.index===this.stage.questions.length){this.stage.questions=shuffle(this.pool);this.index=0;}
+  this.choices=shuffle(this.stage.questions[this.index].choices);return 'correct';
+ }
 }
